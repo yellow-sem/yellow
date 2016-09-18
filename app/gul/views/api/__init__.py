@@ -1,1 +1,1 @@
-from . import identity, gul  # noqa
+from . import identity, gul, ladok  # noqa

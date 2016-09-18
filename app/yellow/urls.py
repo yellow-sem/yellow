@@ -24,6 +24,12 @@ api_v1 = [
             api.gul.AssignmentsView.as_view(),
             name='assignments'),
     ], namespace='gul')),
+
+    url(r'ladok/', include([
+        url(r'courses/$',
+            api.ladok.CoursesView.as_view(),
+            name='courses'),
+    ], namespace='ladok')),
 ]
 
 
