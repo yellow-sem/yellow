@@ -1,5 +1,7 @@
 import re
 
+from django.core.exceptions import PermissionDenied
+
 from rest_framework import serializers, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,7 +9,7 @@ from rest_framework.response import Response
 from utils.token import generate_token
 from utils.models import get_or_none
 from gul.data.session import Credentials, Session
-from gul.models import Identity
+from gul.models import Identity, Authorization
 
 
 class Mixin(object):
@@ -63,7 +65,10 @@ class LoginView(Mixin, APIView):
             if success:
                 token = generate_token()
 
-                kwargs = {'alias': username}
+                kwargs = {
+                    'alias': username,
+                }
+
                 Identity(**kwargs).insert_if_not_exists()
                 Identity.objects.filter(**kwargs).update(
                     session=session.to_data(),
@@ -86,10 +91,7 @@ class LogoutView(Mixin, APIView):
     def post(self, request):
         if request.session:
             request.session.logout()
-
-            request.identity.session = None
-            request.identity.token = None
-            request.identity.save(update_fields=('session', 'token'))
+            request.identity.delete()
 
             success = True
         else:
@@ -105,3 +107,39 @@ class ServiceMixin(Mixin):
     """Mixin for views that require access to a specific GU service."""
 
     service = NotImplemented
+
+    def perform_authentication(self, request):
+        """Initialize service from current identity."""
+
+        super().perform_authentication(request)
+
+        if not request.session:
+            raise PermissionDenied()
+
+        service = None
+
+        authorization = get_or_none(Authorization,
+                                    identity=request.identity,
+                                    service=self.service.NAME)
+        if authorization:
+            session = Session.from_data(authorization.session)
+            service = self.service(session=session)
+        else:
+            service = self.service()
+            success = service.login(request.session)
+
+            if success:
+                kwargs = {
+                    'identity': request.identity,
+                    'service': self.service.NAME,
+                }
+
+                Authorization(**kwargs).insert_if_not_exists()
+                Authorization.objects.filter(**kwargs).update(
+                    session=service.session.to_data(),
+                )
+
+        if not service:
+            raise PermissionDenied()
+
+        request.service = service

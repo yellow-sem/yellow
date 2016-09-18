@@ -66,8 +66,8 @@ class GulService(Service):
 
         return data
 
-    MEMBER_TYPE_SLAVE = 'participant'
-    MEMBER_TYPE_MASTER = 'teacher'
+    MEMBER_TYPE_STUDENT = 'participant'
+    MEMBER_TYPE_SUPERVISOR = 'teacher'
 
     def members(self, course_id, member_type):
         """Get the list of members in the specified course."""
@@ -191,6 +191,8 @@ class GulService(Service):
                              'sista tidpunkt för inlämning'):
 
                     value = None
+
+                    text = text.replace('maj', 'may')
 
                     try:
                         value = parse(text)
