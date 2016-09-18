@@ -6,8 +6,8 @@ from gul.views import api, site
 
 api_v1 = [
     url(r'identity/', include([
-        url(r'login/', api.IdentityLoginView.as_view(), name='login'),
-        url(r'logout/', api.IdentityLogoutView.as_view(), name='logout'),
+        url(r'login/', api.identity.LoginView.as_view(), name='login'),
+        url(r'logout/', api.identity.LogoutView.as_view(), name='logout'),
     ], namespace='identity')),
 ]
 
