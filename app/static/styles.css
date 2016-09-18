@@ -1,0 +1,45 @@
+body {
+    text-align: center;
+}
+
+* {
+    font-family: 'Open Sans';
+}
+
+h1, p {
+    margin: 20px;
+}
+
+p {
+    font-size: 12pt;
+}
+
+div {
+    width: 170px;
+    display: inline-block;
+    text-align: center;
+}
+
+div > i.material-icons {
+    display: block;
+    font-size: 60px;
+}
+
+div > span {
+    display: block;
+    font-size: 10pt;
+    text-transform: uppercase;
+    padding: 10px;
+}
+
+a {
+    text-transform: uppercase;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 14pt;
+}
+
+a > * {
+    display: inline-block;
+    vertical-align: middle;
+}

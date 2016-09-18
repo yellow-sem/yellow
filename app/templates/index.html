@@ -1,0 +1,50 @@
+{% load staticfiles %}
+
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Tjöta</title>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="{% static 'styles.css' %}" type="text/css">
+  </head>
+
+  <body>
+    <h1>
+      <img src="{% static 'tjota.png' %}" alt="Tjöta"/>
+      <img src="{% static 'yellow.png' %}" alt="Yellow"/>
+    </h1>
+
+    <p>You know <b>GUL</b> but have you heard of <b>Yellow</b>?</p>
+    <p><img src="{% static 'bus.png' %}"/></p>
+    <p>
+      The <b>express</b> alternative for integration with GU services.
+    </p>
+
+    <p>
+      <div>
+        <i class="material-icons">merge_type</i>
+        <span>Single gateway to GU services</span>
+      </div>
+
+      <div>
+        <i class="material-icons">security</i>
+        <span>Credentials and access management</span>
+      </div>
+
+      <div>
+        <i class="material-icons">code</i>
+        <span>Programmatic service access</span>
+      </div>
+    </p>
+
+    <p>
+      <a href="https://github.com/snogaraleal/yellow">
+        <span>Get tickets</span>
+        <i class="material-icons">directions_bus</i>
+      </a>
+    </p>
+  </body>
+</html>
