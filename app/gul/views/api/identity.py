@@ -21,7 +21,7 @@ class Mixin(object):
         try:
             # Valid token
             (token,) = re.findall('Token ([a-f0-9]+)', authorization)
-            identity = get_or_none(Identity, token=token)
+            identity = get_or_none(Identity, token=token) if token else None
             session = Session.from_data(identity.session) if identity else None
 
         except ValueError:

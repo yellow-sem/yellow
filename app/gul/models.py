@@ -11,7 +11,7 @@ class Identity(models.Model, sql.StandardIINEModelMixin):
 
     alias = models.CharField(_('alias'), max_length=100, unique=True)
     session = JSONField(_('session'), null=True, blank=True)
-    token = models.CharField(_('token'), max_length=32, db_index=True,
+    token = models.CharField(_('token'), max_length=32, unique=True,
                              null=True, blank=True)
 
     class Meta:
