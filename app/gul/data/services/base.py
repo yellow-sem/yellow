@@ -32,9 +32,10 @@ class Service(object):
 
         response = session.get(self.url())
         assert response.status_code == requests.codes.ok
-        assert urlparse(response.url).hostname == self.host()
 
         self.session = session
+
+        return urlparse(response.url).hostname == self.host()
 
     def logout(self):
         """Logout from service."""
