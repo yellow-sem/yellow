@@ -193,6 +193,8 @@ class GulService(Service):
                     value = None
 
                     text = text.replace('maj', 'may')
+                    if ',' in text:
+                        text = text.split(',')[0]
 
                     try:
                         value = parse(text)
