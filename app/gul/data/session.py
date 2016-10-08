@@ -14,28 +14,30 @@ class Credentials(object):
         self.password = password
 
     def data(self):
-        return {
+
+        data = {}
+
+        data.update({
             'username': self.username,
             'password': self.password,
-        }
+        })
+
+        data.update({
+            'j_username': self.username,
+            'j_password': self.password,
+            '_eventId_proceed': '',
+        })
+
+        return data
 
 
 class Session(object):
     """Session with authenticated GU user."""
 
-    BASE = 'https://login.it.gu.se'
-
-    PATH_LOGIN = '/login'
-    PATH_LOGOUT = '/logout'
+    KEY = NotImplemented
 
     def __init__(self, session=None):
         self.session = session or requests.Session()
-
-    def url(self, path):
-        return urljoin(self.BASE, path)
-
-    def valid(self):
-        raise NotImplementedError()
 
     ########
     # HTTP #
@@ -54,16 +56,73 @@ class Session(object):
     def login(self, credentials):
         """Login with the specified credentials."""
 
-        url = self.url(self.PATH_LOGIN)
+        raise NotImplementedError()
+
+    def logout(self):
+        """Logout from session."""
+
+        raise NotImplementedError()
+
+    ########
+    # DATA #
+    ########
+
+    DATA_COOKIES = 'cookies'
+    DATA_HEADERS = 'headers'
+
+    def to_data(self):
+        return {
+            self.KEY: {
+                self.DATA_COOKIES: data_from_cookiejar(self.session.cookies),
+                self.DATA_HEADERS: dict(self.session.headers),
+            }
+        }
+
+    @classmethod
+    def from_data(cls, data):
+        data = data.get(cls.KEY)
+
+        cookies = cookiejar_from_data(data.get(cls.DATA_COOKIES))
+        headers = data.get(cls.DATA_HEADERS)
+
+        session = requests.Session()
+        session.cookies = cookies
+        session.headers = headers
+        return cls(session=session)
+
+    def copy(self):
+        return self.from_data(self.to_data())
+
+    @classmethod
+    def all_to_data(cls, *sessions):
+        data = {}
+        for session in sessions:
+            data.update(session.to_data())
+        return data
+
+
+class CAS3Session(Session):
+
+    KEY = 'cas3'
+
+    BASE = 'https://login.it.gu.se'
+
+    PATH_LOGIN = '/login'
+    PATH_LOGOUT = '/logout'
+
+    def login(self, credentials):
+
+        url = urljoin(self.BASE, self.PATH_LOGIN)
 
         response = self.get(url)
         assert response.status_code == requests.codes.ok
 
         document = bs4.BeautifulSoup(response.text, 'html.parser')
         form = document.find('form')
+        url = urljoin(response.url, form['action'])
 
         data = {}
-        for field in form.select('input'):
+        for field in form.select('input[name]'):
             data[field['name']] = field['value']
 
         data.update(credentials.data())
@@ -75,9 +134,8 @@ class Session(object):
         return bool(document.select('[href="http://portalen.gu.se/student"]'))
 
     def logout(self):
-        """Logout from session."""
 
-        url = self.url(self.PATH_LOGOUT)
+        url = urljoin(self.BASE, self.PATH_LOGOUT)
 
         response = self.get(url)
         assert response.status_code == requests.codes.ok
@@ -85,28 +143,56 @@ class Session(object):
         document = bs4.BeautifulSoup(response.text, 'html.parser')
         return bool(document.select('[href="http://portalen.gu.se/student"]'))
 
-    ########
-    # DATA #
-    ########
 
-    DATA_COOKIES = 'cookies'
-    DATA_HEADERS = 'headers'
+class IDP3Session(Session):
 
-    def to_data(self):
-        return {
-            self.DATA_COOKIES: data_from_cookiejar(self.session.cookies),
-            self.DATA_HEADERS: dict(self.session.headers),
-        }
+    KEY = 'idp3'
 
-    @classmethod
-    def from_data(cls, data):
-        cookies = cookiejar_from_data(data.get(cls.DATA_COOKIES))
-        headers = data.get(cls.DATA_HEADERS)
+    BASE = 'https://gul.gu.se'
 
-        session = requests.Session()
-        session.cookies = cookies
-        session.headers = headers
-        return cls(session=session)
+    PATH_LOGIN = '/login/processlogin'
+    PATH_LOGOUT = '/logout.do'
 
-    def copy(self):
-        return self.from_data(self.to_data())
+    def login(self, credentials):
+
+        url = urljoin(self.BASE, self.PATH_LOGIN)
+
+        response = self.get(url)
+        assert response.status_code == requests.codes.ok
+
+        document = bs4.BeautifulSoup(response.text, 'html.parser')
+        form = document.find('form')
+        url = urljoin(response.url, form['action'])
+
+        data = {}
+        for field in form.select('input[name]'):
+            data[field['name']] = field['value']
+
+        data.update(credentials.data())
+
+        response = self.post(url, data)
+        assert response.status_code == requests.codes.ok
+
+        document = bs4.BeautifulSoup(response.text, 'html.parser')
+        form = document.find('form')
+        url = form['action']
+
+        data = {}
+        for field in form.select('input[name]'):
+            data[field['name']] = field['value']
+
+        response = self.post(url, data)
+        assert response.status_code == requests.codes.ok
+
+        document = bs4.BeautifulSoup(response.text, 'html.parser')
+        return bool(document.select('[href="/logout.do"]'))
+
+    def logout(self):
+
+        url = urljoin(self.BASE, self.PATH_LOGOUT)
+
+        response = self.get(url)
+        assert response.status_code == requests.codes.ok
+
+        document = bs4.BeautifulSoup(response.text, 'html.parser')
+        return bool(document.select('.cas-logout'))

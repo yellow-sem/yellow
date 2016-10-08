@@ -8,15 +8,25 @@ from rest_framework.response import Response
 
 from utils.token import generate_token
 from utils.models import get_or_none
-from gul.data.session import Credentials, Session
+from gul.data.session import Credentials, Session, CAS3Session, IDP3Session
 from gul.models import Identity, Authorization
 
 
 class Mixin(object):
     """Mixin for views that require a GU identity."""
 
+    session_class = None
+
+    SESSION_CLASS = [
+        CAS3Session,
+        IDP3Session,
+    ]
+
     def perform_authentication(self, request):
         """Set identity from authorization token."""
+
+        assert (self.session_class is None or
+                self.session_class in self.SESSION_CLASS)
 
         authorization = request.META.get('HTTP_AUTHORIZATION', '')
 
@@ -24,7 +34,8 @@ class Mixin(object):
             # Valid token
             (token,) = re.findall('Token ([a-f0-9]+)', authorization)
             identity = get_or_none(Identity, token=token) if token else None
-            session = Session.from_data(identity.session) if identity else None
+            session = (self.session_class.from_data(identity.session)
+                       if identity else None)
 
         except ValueError:
             # Invalid token
@@ -32,8 +43,8 @@ class Mixin(object):
             identity = None
             session = None
 
-        request.identity = identity
-        request.session = session
+        self.identity = identity
+        self.session = session
 
 
 class LoginView(Mixin, APIView):
@@ -58,8 +69,17 @@ class LoginView(Mixin, APIView):
                 password=password,
             )
 
-            session = Session()
-            success = session.login(credentials)
+            sessions = []
+            success = True
+
+            for session_class in self.SESSION_CLASS:
+
+                session = session_class()
+                success = success and session.login(credentials)
+
+                if success:
+                    sessions.append(session)
+
             token = None
 
             if success:
@@ -71,7 +91,7 @@ class LoginView(Mixin, APIView):
 
                 Identity(**kwargs).insert_if_not_exists()
                 Identity.objects.filter(**kwargs).update(
-                    session=session.to_data(),
+                    session=Session.all_to_data(*sessions),
                     token=token,
                 )
 
@@ -89,9 +109,9 @@ class LogoutView(Mixin, APIView):
     """Logout from GU."""
 
     def post(self, request):
-        if request.session:
-            request.session.logout()
-            request.identity.delete()
+        if self.session:
+            self.session.logout()
+            self.identity.delete()
 
             success = True
         else:
@@ -106,32 +126,33 @@ class LogoutView(Mixin, APIView):
 class ServiceMixin(Mixin):
     """Mixin for views that require access to a specific GU service."""
 
-    service = NotImplemented
+    session_class = NotImplemented
+    service_class = NotImplemented
 
     def perform_authentication(self, request):
         """Initialize service from current identity."""
 
         super().perform_authentication(request)
 
-        if not request.session:
+        if not self.session:
             raise PermissionDenied()
 
         service = None
 
         authorization = get_or_none(Authorization,
-                                    identity=request.identity,
-                                    service=self.service.NAME)
+                                    identity=self.identity,
+                                    service=self.service_class.NAME)
         if authorization:
-            session = Session.from_data(authorization.session)
-            service = self.service(session=session)
+            session = self.session_class.from_data(authorization.session)
+            service = self.service_class(session=session)
         else:
-            service = self.service()
-            success = service.login(request.session)
+            service = self.service_class()
+            success = service.login(self.session)
 
             if success:
                 kwargs = {
-                    'identity': request.identity,
-                    'service': self.service.NAME,
+                    'identity': self.identity,
+                    'service': self.service_class.NAME,
                 }
 
                 Authorization(**kwargs).insert_if_not_exists()
@@ -142,4 +163,4 @@ class ServiceMixin(Mixin):
         if not service:
             raise PermissionDenied()
 
-        request.service = service
+        self.service = service
