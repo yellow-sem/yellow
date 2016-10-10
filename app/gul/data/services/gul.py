@@ -193,6 +193,7 @@ class GulService(Service):
                     value = None
 
                     text = text.replace('maj', 'may')
+                    text = text.replace('okt', 'oct')
                     if ',' in text:
                         text = text.split(',')[0]
 
