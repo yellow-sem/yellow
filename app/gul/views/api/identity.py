@@ -12,42 +12,15 @@ from gul.data.session import Credentials, Session, CAS3Session, IDP3Session
 from gul.models import Identity, Authorization
 
 
-class Mixin(object):
-    """Mixin for views that require a GU identity."""
-
-    session_class = None
+class IdentityMixin(object):
 
     SESSION_CLASS = [
         CAS3Session,
         IDP3Session,
     ]
 
-    def perform_authentication(self, request):
-        """Set identity from authorization token."""
 
-        assert (self.session_class is None or
-                self.session_class in self.SESSION_CLASS)
-
-        authorization = request.META.get('HTTP_AUTHORIZATION', '')
-
-        try:
-            # Valid token
-            (token,) = re.findall('Token ([a-f0-9]+)', authorization)
-            identity = get_or_none(Identity, token=token) if token else None
-            session = (self.session_class.from_data(identity.session)
-                       if identity else None)
-
-        except ValueError:
-            # Invalid token
-            token = None
-            identity = None
-            session = None
-
-        self.identity = identity
-        self.session = session
-
-
-class LoginView(Mixin, APIView):
+class LoginView(IdentityMixin, APIView):
     """Login to GU."""
 
     class Serializer(serializers.Serializer):
@@ -105,28 +78,69 @@ class LoginView(Mixin, APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
 
-class LogoutView(Mixin, APIView):
+class LogoutView(IdentityMixin, APIView):
     """Logout from GU."""
 
     def post(self, request):
-        if self.session:
-            self.session.logout()
-            self.identity.delete()
 
-            success = True
-        else:
+        authorization = request.META.get('HTTP_AUTHORIZATION', '')
+
+        try:
+            # Valid token
+            (token,) = re.findall('Token ([a-f0-9]+)', authorization)
+            identity = get_or_none(Identity, token=token) if token else None
+            success = identity is not None
+
+            if success:
+                for session_class in self.SESSION_CLASS:
+                    session = session_class.from_data(identity.session)
+                    session.logout()
+
+                identity.delete()
+
+        except ValueError:
+            # Invalid token
             success = False
 
         return Response({
             'success': success,
         }, status=(status.HTTP_200_OK
-                   if success else status.HTTP_403_FORBIDDEN))
+                   if success else status.HTTP_400_BAD_REQUEST))
 
 
-class ServiceMixin(Mixin):
+class SessionMixin(IdentityMixin):
+    """Mixin for views that require a GU identity."""
+
+    session_class = None
+
+    def perform_authentication(self, request):
+        """Set identity from authorization token."""
+
+        assert (self.session_class is None or
+                self.session_class in self.SESSION_CLASS)
+
+        authorization = request.META.get('HTTP_AUTHORIZATION', '')
+
+        try:
+            # Valid token
+            (token,) = re.findall('Token ([a-f0-9]+)', authorization)
+            identity = get_or_none(Identity, token=token) if token else None
+            session = (self.session_class.from_data(identity.session)
+                       if identity else None)
+
+        except ValueError:
+            # Invalid token
+            token = None
+            identity = None
+            session = None
+
+        self.identity = identity
+        self.session = session
+
+
+class ServiceMixin(SessionMixin):
     """Mixin for views that require access to a specific GU service."""
 
-    session_class = NotImplemented
     service_class = NotImplemented
 
     def perform_authentication(self, request):
