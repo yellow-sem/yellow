@@ -1,4 +1,5 @@
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, parse_qs, urlencode
+import re
 
 import requests
 import bs4
@@ -160,7 +161,31 @@ class IDP3Session(Session):
         response = self.get(url)
         assert response.status_code == requests.codes.ok
 
+        if 'samlds' in response.url:
+            url = parse_qs(urlparse(response.url).query)['return'][0]
+            url = urlparse(url)
+
+            qs = {key: value[0] for key, value in parse_qs(url.query).items()}
+            qs['entityID'] = 'https://idp3.it.gu.se/idp/shibboleth'
+            qs = urlencode(qs)
+
+            url = url._replace(query=qs).geturl()
+
+            response = self.get(url)
+            assert response.status_code == requests.codes.ok
+
         document = bs4.BeautifulSoup(response.text, 'html.parser')
+
+        idp = document.select('.idp')
+        idp = idp[0] if idp else None
+        if idp:
+            href = re.findall('location.href="(.*)"', idp['onclick'])[0]
+
+            response = self.get(href)
+            assert response.status_code == requests.codes.ok
+
+            document = bs4.BeautifulSoup(response.text, 'html.parser')
+
         form = document.find('form')
         url = urljoin(response.url, form['action'])
 
