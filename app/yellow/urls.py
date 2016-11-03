@@ -11,26 +11,31 @@ api_v1 = [
         url(r'logout/', api.identity.LogoutView.as_view(), name='logout'),
     ], namespace='identity')),
 
-    url(r'gul/', include([
-        url(r'courses/$',
-            api.gul.CoursesView.as_view(),
-            name='courses'),
-        url(r'courses/(?P<course_id>[^/]+)/students/$',
-            api.gul.StudentsView.as_view(),
-            name='students'),
-        url(r'courses/(?P<course_id>[^/]+)/supervisors/$',
-            api.gul.SupervisorsView.as_view(),
-            name='supervisors'),
-        url(r'courses/(?P<course_id>[^/]+)/assignments/$',
-            api.gul.AssignmentsView.as_view(),
-            name='assignments'),
-    ], namespace='gul')),
+    url(r'courses/$',
+        api.gul.CoursesView.as_view(),
+        name='courses'),
+    url(r'courses/(?P<course_id>[^/]+)/students/$',
+        api.gul.StudentsView.as_view(),
+        name='students'),
+    url(r'courses/(?P<course_id>[^/]+)/supervisors/$',
+        api.gul.SupervisorsView.as_view(),
+        name='supervisors'),
+    url(r'courses/(?P<course_id>[^/]+)/assignments/$',
+        api.gul.AssignmentsView.as_view(),
+        name='assignments'),
 
-    url(r'ladok/', include([
-        url(r'courses/$',
-            api.ladok.CoursesView.as_view(),
-            name='courses'),
-    ], namespace='ladok')),
+    url(r'grades/$',
+        api.ladok.CoursesView.as_view(),
+        name='courses'),
+
+    url(r'extract/$',
+        api.extract.ExtractView.as_view(),
+        name='extract'),
+
+    url(r'chat/', include([
+        url(r'handle/', api.chat.HandleView.as_view(), name='handle'),
+        url(r'rooms/', api.chat.RoomsView.as_view(), name='rooms'),
+    ], namespace='chat')),
 ]
 
 
