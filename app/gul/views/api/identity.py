@@ -111,7 +111,7 @@ class LogoutView(IdentityMixin, APIView):
 class SessionMixin(IdentityMixin):
     """Mixin for views that require a GU identity."""
 
-    session_class = None
+    session_class = NotImplemented
 
     def perform_authentication(self, request):
         """Set identity from authorization token."""
@@ -144,6 +144,9 @@ class ServiceMixin(SessionMixin):
     @classmethod
     def get_service(cls, self, session_class, service_class):
 
+        if not self.session:
+            raise PermissionDenied()
+
         authorization = get_or_none(Authorization,
                                     identity=self.identity,
                                     service=service_class.NAME)
@@ -173,9 +176,6 @@ class ServiceMixin(SessionMixin):
         """Initialize service from current identity."""
 
         super().perform_authentication(request)
-
-        if not self.session:
-            raise PermissionDenied()
 
         service = self.get_service(self,
                                    self.session_class,
