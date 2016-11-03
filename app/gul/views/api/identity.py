@@ -68,6 +68,8 @@ class LoginView(IdentityMixin, APIView):
                     token=token,
                 )
 
+                Authorization.objects.filter(identity__alias=username).delete()
+
             return Response({
                 'success': success,
                 'token': token,
