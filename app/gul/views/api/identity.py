@@ -126,7 +126,7 @@ class SessionMixin(IdentityMixin):
             (token,) = re.findall('Token ([a-f0-9]+)', authorization)
             identity = get_or_none(Identity, token=token) if token else None
             session = (self.session_class.from_data(identity.session)
-                       if identity else None)
+                       if identity else None) if self.session_class else None
 
         except ValueError:
             # Invalid token
@@ -141,6 +141,32 @@ class SessionMixin(IdentityMixin):
 class ServiceMixin(SessionMixin):
     """Mixin for views that require access to a specific GU service."""
 
+    @classmethod
+    def get_service(cls, self, session_class, service_class):
+
+        authorization = get_or_none(Authorization,
+                                    identity=self.identity,
+                                    service=service_class.NAME)
+        if authorization:
+            session = session_class.from_data(authorization.session)
+            service = service_class(session=session)
+        else:
+            service = service_class()
+            success = service.login(self.session)
+
+            if success:
+                kwargs = {
+                    'identity': self.identity,
+                    'service': service_class.NAME,
+                }
+
+                Authorization(**kwargs).insert_if_not_exists()
+                Authorization.objects.filter(**kwargs).update(
+                    session=service.session.to_data(),
+                )
+
+        return service
+
     service_class = NotImplemented
 
     def perform_authentication(self, request):
@@ -151,28 +177,9 @@ class ServiceMixin(SessionMixin):
         if not self.session:
             raise PermissionDenied()
 
-        service = None
-
-        authorization = get_or_none(Authorization,
-                                    identity=self.identity,
-                                    service=self.service_class.NAME)
-        if authorization:
-            session = self.session_class.from_data(authorization.session)
-            service = self.service_class(session=session)
-        else:
-            service = self.service_class()
-            success = service.login(self.session)
-
-            if success:
-                kwargs = {
-                    'identity': self.identity,
-                    'service': self.service_class.NAME,
-                }
-
-                Authorization(**kwargs).insert_if_not_exists()
-                Authorization.objects.filter(**kwargs).update(
-                    session=service.session.to_data(),
-                )
+        service = self.get_service(self,
+                                   self.session_class,
+                                   self.service_class)
 
         if not service:
             raise PermissionDenied()
