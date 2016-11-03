@@ -157,7 +157,8 @@ class ServiceMixin(SessionMixin):
             service = service_class(session=session)
         else:
             service = service_class()
-            success = service.login(self.session)
+            session = session_class.from_data(self.identity.session)
+            success = service.login(session)
 
             if success:
                 kwargs = {
