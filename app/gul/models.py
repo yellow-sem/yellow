@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.postgres.fields import JSONField
@@ -32,3 +34,18 @@ class Authorization(models.Model, sql.StandardIINEModelMixin):
         unique_together = (('identity', 'service'),)
         verbose_name = _('authorization')
         verbose_name_plural = _('authorizations')
+
+
+class Room(models.Model, sql.StandardIINEModelMixin):
+
+    RELATED_NAME = 'rooms'
+
+    room_id = models.UUIDField(_('room ID'), default=uuid.uuid4,
+                               editable=False)
+
+    course_id = models.IntegerField(_('course ID'), unique=True)
+    course_name = models.CharField(_('course name'), max_length=100)
+
+    class Meta:
+        verbose_name = _('room')
+        verbose_name_plural = _('rooms')

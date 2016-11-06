@@ -9,14 +9,12 @@ from rest_framework import serializers
 from gul.data.session import IDP3Session, CAS3Session
 from gul.data.services import GulService, LadokService
 from gul.views.api import identity
+from gul.models import Room
 
 
-class HandleView(identity.SessionMixin, APIView):
+class BaseView(identity.SessionMixin, APIView):
 
     session_class = CAS3Session
-
-    class Serializer(serializers.Serializer):
-        text = serializers.CharField(required=True)
 
     def perform_authentication(self, request):
         super().perform_authentication(request)
@@ -33,6 +31,12 @@ class HandleView(identity.SessionMixin, APIView):
                                               service_class=LadokService)
         ))
 
+
+class HandleView(BaseView):
+
+    class Serializer(serializers.Serializer):
+        text = serializers.CharField(required=True)
+
     def post(self, request):
         serializer = self.Serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -46,6 +50,9 @@ class HandleView(identity.SessionMixin, APIView):
     def handle(self, text):
         if 'courses' in text:
             courses = self.gul.courses()
+            if not courses:
+                return 'Could not find any courses.'
+
             return '<br/>'.join(['Your courses are:'] + [
                 '{} ({})'.format(course['name'],
                                  {True: 'active',
@@ -81,10 +88,26 @@ class HandleView(identity.SessionMixin, APIView):
         return 'I have no idea what to do.'
 
 
-class RoomsView(identity.ServiceMixin, APIView):
+class RoomsView(BaseView):
 
     session_class = IDP3Session
     service_class = GulService
 
     def get(self, request):
-        return Response()
+        courses = self.gul.courses()
+
+        Room.insert_if_not_exist([
+            Room(
+                course_id=course.get('id'),
+                course_name=course.get('name'),
+            )
+            for course in courses
+        ])
+
+        return Response([{
+            'id': str(room.room_id),
+            'name': '{} ({})'.format(room.course_name,
+                                     room.course_id),
+        } for room in Room.objects.filter(
+            course_id__in=[course.get('id') for course in courses]
+        )])
