@@ -1,4 +1,5 @@
 from urllib.parse import urljoin
+import functools
 
 import requests
 import bs4
@@ -11,6 +12,11 @@ class LadokService(Service):
     NAME = 'ladok'
     HOST = 'lpw.it.gu.se'
     BASE = 'http://{}/uPortal/Login'.format(HOST)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.courses = functools.lru_cache()(self.courses)
 
     def host(self):
         return self.HOST

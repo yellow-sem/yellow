@@ -1,4 +1,5 @@
 import re
+import functools
 from datetime import datetime, timedelta
 from urllib.parse import urljoin, urlencode
 
@@ -16,6 +17,11 @@ class GulService(Service):
     HOST = 'gul.gu.se'
     BASE = 'https://{}/login/processlogin'.format(HOST)
     TARGET = '/startPage.do'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.courses = functools.lru_cache()(self.courses)
 
     def host(self):
         return self.HOST
@@ -98,6 +104,7 @@ class GulService(Service):
             data.append({
                 'name': '{} {}'.format(first_name, last_name),
                 'alias': alias,
+                'type': member_type,
             })
 
         return data
